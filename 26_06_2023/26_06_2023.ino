@@ -25,12 +25,11 @@ struct Packet {
   int owner_address;
   int target_address;
   int target_channel;
-  char data[];
+  String data;
 };
 
 struct Parameter e32_parameter;
 struct Pin e32_pin;
-struct Packet trans_packet;
 
 struct Parameter createParameter(int frequency, int baud_rate, int address, int channel, float air_data_rate, int parity, int transmitting_power) {
   struct Parameter parameter;
@@ -60,11 +59,15 @@ void inital() {
   e32_pin = createPin(0, 1, 2, 3, 4);
 }
 
-const char* EncodePacketToString(char type, int owner_address, int owner_channel, int target_address, int target_channel, char* data) {
-  char* value = (char*)malloc((strlen(data) + 100) * sizeof(char));
-  sprintf(value, "d:%c:%04X:%d:%04X:%d:%s", type, owner_address, owner_channel, target_address, target_channel, data);
-  value[strlen(value)] = '\0';
-  return value;
+String EncodePacketToString(char type, int owner_address, int owner_channel, int target_address, int target_channel, String data) {
+  String result = "d:";
+  char hex_owner_add[5];
+  char hex_target_add[5];
+  sprintf(hex_owner_add, "%04X", owner_address);
+  sprintf(hex_target_add, "%04X", target_address);
+
+  result = result + type + ":" + String(hex_owner_add) + ":" + String(owner_channel) + ":" + String(hex_target_add) + ":" + String(target_channel) + ":" + data;
+  return result;
 }
 
 int findCharacter(const char* input, char target) {
@@ -95,7 +98,7 @@ struct Packet DecodeStringToPacket(const char* encodeString) {
   packet.owner_channel = atoi(params[2]);
   sscanf(params[3], "%04X", &packet.target_address);
   packet.target_channel = atoi(params[4]);
-  strcpy(packet.data, sub_str);
+  packet.data = String(sub_str);
   return packet;
 }
 
@@ -116,10 +119,27 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  const char* test_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, 25, 17, "test");
+  String test_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, 25, 17, "test");
 
   // Send sensor value to Python
-  Serial.println(test_data);
-  // Chờ 1 giây trước khi lặp lại
+
+  // Serial.println(test_data);
+
+  String readString;
+  while (Serial.available()) {
+    delay(50);
+    if (Serial.available() > 0) {
+      char c = Serial.read();  //gets one byte from serial buffer
+      readString += c;         //makes the string readString
+    }
+  }
+  if (readString.length() > 0) {
+    struct Packet packet = DecodeStringToPacket(readString.c_str());
+    String response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, packet.data);
+    Serial.println(response_data);
+  }
   delay(1000);
+  // }
+
+  // Chờ 1 giây trước khi lặp lại
 }
