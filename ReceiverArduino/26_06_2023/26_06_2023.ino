@@ -4,8 +4,8 @@
 struct Parameter {
   int frequency;  //Hz
   int baud_rate;
-  int address;
-  int channel;
+  String address;
+  String channel;
   float air_data_rate;  //kbps
   int parity;
   int transmitting_power;
@@ -21,21 +21,22 @@ struct Pin {
 
 struct Packet {
   char type;
-  int owner_channel;
-  int owner_address;
-  int target_address;
-  int target_channel;
+  String owner_channel;
+  String owner_address;
+  String target_address;
+  String target_channel;
   String data;
 };
 
 struct Parameter e32_parameter;
 struct Pin e32_pin;
 String readString;
-String response_data = "test_data";
+String response_data;
+String dataReceived;
 bool stringCompleted = false;
-int counter1 = 10;
+bool dataSetUpSended = false;
 
-struct Parameter createParameter(int frequency, int baud_rate, int address, int channel, float air_data_rate, int parity, int transmitting_power) {
+struct Parameter createParameter(int frequency, int baud_rate, String address, String channel, float air_data_rate, int parity, int transmitting_power) {
   struct Parameter parameter;
   parameter.address = address;
   parameter.frequency = frequency;
@@ -59,18 +60,14 @@ struct Pin createPin(int RXD, int TXD, int M0, int M1, int AUX) {
 }
 
 void inital() {
-  e32_parameter = createParameter(433, 9600, 0x0010, 0x17, 2.4, 8, 100);
+  e32_parameter = createParameter(433, 9600, "0010", "16", 2.4, 8, 100);
   e32_pin = createPin(0, 1, 2, 3, 4);
 }
 
-String EncodePacketToString(char type, int owner_address, int owner_channel, int target_address, int target_channel, String data) {
+String EncodePacketToString(char type, String owner_address, String owner_channel, String target_address, String target_channel, String data) {
   String result = "d:";
-  char hex_owner_add[5];
-  char hex_target_add[5];
-  sprintf(hex_owner_add, "%04X", owner_address);
-  sprintf(hex_target_add, "%04X", target_address);
 
-  result = result + type + ":" + String(hex_owner_add) + ":" + String(owner_channel) + ":" + String(hex_target_add) + ":" + String(target_channel) + ":" + data;
+  result = result + type + ":" + owner_address + ":" + owner_channel + ":" + target_address + ":" + target_channel + ":" + data + "#";
   return result;
 }
 
@@ -98,20 +95,22 @@ struct Packet DecodeStringToPacket(const char* encodeString) {
     strcpy(sub_str, sub_str + colon_position + 1);
   }
   packet.type = params[0][0];
-  sscanf(params[1], "%04X", &packet.owner_address);
-  packet.owner_channel = atoi(params[2]);
-  sscanf(params[3], "%04X", &packet.target_address);
-  packet.target_channel = atoi(params[4]);
+  // sscanf(params[1], "%04X", &packet.owner_address);
+  packet.owner_address = String(params[1]);
+  packet.owner_channel = String(params[2]);
+  // sscanf(params[3], "%04X", &packet.target_address);
+  packet.target_address = String(params[3]);
+  packet.target_channel = String(params[4]);
   packet.data = String(sub_str);
+  int length = packet.data.length();
+  packet.data.remove(length - 1);
   return packet;
 }
 
 String sendSetUpInfomation() {
   String data = "i:";
   // sprintf(data, "i:%04X:%d", e32_parameter.address, e32_parameter.channel);
-  char hex_param_address[5];
-  sprintf(hex_param_address, "%04X", e32_parameter.address);
-  data = data + String(hex_param_address) + ":" + String(e32_parameter.channel);
+  data = data + e32_parameter.address + ":" + e32_parameter.channel;
   return data;
 }
 
@@ -120,18 +119,22 @@ void serialEvent() {
     if (Serial.available() > 0) {
       char c = (char)Serial.read();  //gets one byte from serial buffer
       readString += c;
-      if(c=='#'){
+      if (c == '#') {
         stringCompleted = true;
-      }               //makes the string readString
+      }  //makes the string readString
     }
   }
   if (readString.length() > 0) {
     if (readString == "s") {
       response_data = sendSetUpInfomation();
+    } else if (readString == "SuccessSetUp") {
+      response_data = "";
+      dataSetUpSended = true;
     } else {
-      // struct Packet packet = DecodeStringToPacket(readString.c_str());
-      // response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, packet.data);
-      response_data = readString;
+      struct Packet packet = DecodeStringToPacket(readString.c_str());
+      dataReceived = packet.data;
+      response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, "Received");
+      // response_data = readString;
     }
   } else {
     response_data = "Can't read! Fail";
@@ -147,25 +150,30 @@ void setup() {
   pinMode(e32_pin.AUX, OUTPUT);
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
-  char data[100];
-  sprintf(data, "i:%04X:%d", e32_parameter.address, e32_parameter.channel);
-  data[strlen(data)] = '\0';
-  Serial.println(data);
+  // char data[100];
+  // sprintf(data, "i:%04X:%d", e32_parameter.address, e32_parameter.channel);
+  // data[strlen(data)] = '\0';
+  // Serial.println(data);
 }
-
+int counter = 10;
 void loop() {
   // put your main code here, to run repeatedly:
-  counter1--;
-  if (counter1 <= 0) {
-    if (stringCompleted) {
-      counter1 = 1000;
+  counter--;
+  if (counter <= 0) {
+    counter = 3000;
+    if (!dataSetUpSended) {
+      response_data = sendSetUpInfomation();
       Serial.println(response_data);
-      readString = "";
       response_data = "";
-      counter1 = 1000;
-      stringCompleted = false;
+    } else {
+      if (stringCompleted) {
+        Serial.println(response_data);
+        digitalWrite(LED_BUILTIN, dataReceived.toInt());
+      }
     }
   }
+  // serialEvent();
+
   // Serial.println(test_data);
 
   delay(1);
