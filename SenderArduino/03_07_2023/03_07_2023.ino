@@ -44,6 +44,15 @@ void inital() {
   e32_pin = createPin(0, 1, 2, 3, 4);
 }
 
+String sendSetUpInfomation() {
+  String data = "i:";
+  // sprintf(data, "i:%04X:%d", e32_parameter.address, e32_parameter.channel);
+  char hex_param_address[5];
+  sprintf(hex_param_address, "%04X", e32_parameter.address);
+  data = data + String(hex_param_address) + ":" + String(e32_parameter.channel);
+  return data;
+}
+
 void setup() {
   // put your setup code here, to run once:
   inital();
@@ -52,17 +61,16 @@ void setup() {
   pinMode(e32_pin.AUX, OUTPUT);
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
-  char data[100];
-  sprintf(data, "i:%04X:%d", e32_parameter.address, e32_parameter.channel);
-  data[strlen(data)] = '\0';
-  Serial.println(data);
+  String setUpData = sendSetUpInfomation();
+  Serial.println(setUpData);
 }
-int counter1 = 1000;
+int counter1 = 10000;
 void loop() {
   // put your main code here, to run repeatedly:
   counter1--;
   if (counter1 <= 0) {
-    counter1 = 1000;
+    counter1 = 10000;
     Serial.println("d:b:0000:17:0023:10:0#");
   }
+  delay(1);
 }
