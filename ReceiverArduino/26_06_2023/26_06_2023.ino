@@ -34,7 +34,7 @@ String readString;
 String response_data;
 String dataReceived;
 bool stringCompleted = false;
-bool dataSetUpSended = false;
+bool dataSetUpSended = true;
 
 struct Parameter createParameter(int frequency, int baud_rate, String address, String channel, float air_data_rate, int parity, int transmitting_power) {
   struct Parameter parameter;
@@ -81,27 +81,57 @@ int findCharacter(const char* input, char target) {
   }
 }
 
-struct Packet DecodeStringToPacket(const char* encodeString) {
-  char params[6][100];
-  char sub_str[100];
+// struct Packet DecodeStringToPacket(const char* encodeString) {
+//   char params[6][100];
+//   char sub_str[100];
+//   struct Packet packet;
+//   strcpy(sub_str, encodeString);
+//   int colon_position = findCharacter(sub_str, ':');
+//   strcpy(sub_str, sub_str + colon_position + 1);
+//   for (int i = 0; i < 5; i++) {
+//     int colon_position = findCharacter(sub_str, ':');
+//     strncpy(params[i], sub_str, (size_t)colon_position);
+//     params[i][colon_position] = '\0';
+//     strcpy(sub_str, sub_str + colon_position + 1);
+//   }
+//   packet.type = params[0][0];
+//   // sscanf(params[1], "%04X", &packet.owner_address);
+//   packet.owner_address = String(params[1]);
+//   packet.owner_channel = String(params[2]);
+//   // sscanf(params[3], "%04X", &packet.target_address);
+//   packet.target_address = String(params[3]);
+//   packet.target_channel = String(params[4]);
+//   packet.data = String(sub_str);
+//   int length = packet.data.length();
+//   packet.data.remove(length - 1);
+//   return packet;
+// }
+struct Packet DecodeStringToPacket(String encodeString) {
+  String delimiter = ":";
+  int delimiterIndex;
+  int lastIndex = 0;
+  int i = 0;
+  String params[7];
   struct Packet packet;
-  strcpy(sub_str, encodeString);
-  int colon_position = findCharacter(sub_str, ':');
-  strcpy(sub_str, sub_str + colon_position + 1);
-  for (int i = 0; i < 5; i++) {
-    int colon_position = findCharacter(sub_str, ':');
-    strncpy(params[i], sub_str, (size_t)colon_position);
-    params[i][colon_position] = '\0';
-    strcpy(sub_str, sub_str + colon_position + 1);
+
+  while ((delimiterIndex = encodeString.indexOf(delimiter, lastIndex)) != -1) {
+    String token = encodeString.substring(lastIndex, delimiterIndex);
+    lastIndex = delimiterIndex + delimiter.length();
+
+    // Serial.println(token);
+    params[i] = token;
+    i++;
   }
-  packet.type = params[0][0];
-  // sscanf(params[1], "%04X", &packet.owner_address);
-  packet.owner_address = String(params[1]);
-  packet.owner_channel = String(params[2]);
-  // sscanf(params[3], "%04X", &packet.target_address);
-  packet.target_address = String(params[3]);
-  packet.target_channel = String(params[4]);
-  packet.data = String(sub_str);
+
+  // Print the remaining part after the last delimiter
+  String lastToken = encodeString.substring(lastIndex);
+  params[6] = lastToken;
+  packet.type = params[1][0];
+  packet.owner_address = params[2];
+  packet.owner_channel = params[3];
+  packet.target_address = params[4];
+  packet.target_channel = params[5];
+  packet.data = params[6];
   int length = packet.data.length();
   packet.data.remove(length - 1);
   return packet;
@@ -131,10 +161,10 @@ void serialEvent() {
       response_data = "";
       dataSetUpSended = true;
     } else {
-      struct Packet packet = DecodeStringToPacket(readString.c_str());
+      struct Packet packet = DecodeStringToPacket(readString);
       dataReceived = packet.data;
       response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, "Received");
-      // response_data = readString;
+      // response_data = packet.data;
     }
   } else {
     response_data = "Can't read! Fail";
@@ -168,6 +198,7 @@ void loop() {
     } else {
       if (stringCompleted) {
         Serial.println(response_data);
+        stringCompleted = false;
         digitalWrite(LED_BUILTIN, dataReceived.toInt());
       }
     }
