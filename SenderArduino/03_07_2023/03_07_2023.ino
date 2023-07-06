@@ -34,7 +34,7 @@ String readString;
 String response_data = "test_data";
 bool stringCompleted = false;
 bool dataSetUpSended = false;
-bool dataSendSuccess = false;
+bool ledOn = false;
 
 struct Parameter createParameter(int frequency, int baud_rate, String address, String channel, float air_data_rate, int parity, int transmitting_power) {
   struct Parameter parameter;
@@ -115,31 +115,23 @@ String sendSetUpInfomation() {
 }
 
 void serialEvent() {
-  while (Serial.available()) {
-    if (Serial.available() > 0) {
-      char c = (char)Serial.read();  //gets one byte from serial buffer
-      readString += c;
-      if (c == '#') {
-        stringCompleted = true;
-      }  //makes the string readString
-    }
+  if (Serial.available() > 0) {
+    readString = Serial.readString();
+    delay(1);
+    readString.trim();
+    //makes the string readString
   }
   if (readString.length() > 0) {
-    if (readString == "s") {
-      response_data = sendSetUpInfomation();
-    } else if (readString == "SuccessSetUp") {
+    if (readString == "SuccessSetUp") {
       response_data = "";
       dataSetUpSended = true;
-    } else if (readString == "Received") {
-      dataSendSuccess = true;
     } else {
-      // struct Packet packet = DecodeStringToPacket(readString.c_str());
-      // response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, packet.data);
-      response_data = readString;
+      struct Packet packet = DecodeStringToPacket(readString.c_str());
+      if(packet.data == "Received") {
+        ledOn = !ledOn;
+      }
     }
-  } else {
-    response_data = "Can't read! Fail";
-  }
+  } 
 }
 
 
@@ -167,11 +159,10 @@ void loop() {
       response_data = sendSetUpInfomation();
       Serial.println(response_data);
     } else {
-      if (!dataSendSuccess) {
+      if (!ledOn) {
         Serial.println("d:b:0000:17:0010:16:0#");
       } else {
         Serial.println("d:b:0000:17:0010:16:1#");
-        dataSendSuccess = false;
       }
     }
   }
