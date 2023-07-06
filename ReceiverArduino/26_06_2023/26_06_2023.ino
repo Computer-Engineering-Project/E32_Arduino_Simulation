@@ -34,7 +34,7 @@ String readString;
 String response_data;
 String dataReceived;
 bool stringCompleted = false;
-bool dataSetUpSended = true;
+bool dataSetUpSended = false;
 
 struct Parameter createParameter(int frequency, int baud_rate, String address, String channel, float air_data_rate, int parity, int transmitting_power) {
   struct Parameter parameter;
@@ -161,10 +161,10 @@ void serialEvent() {
       response_data = "";
       dataSetUpSended = true;
     } else {
-      struct Packet packet = DecodeStringToPacket(readString);
-      dataReceived = packet.data;
-      response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, "Received");
-      // response_data = packet.data;
+      // struct Packet packet = DecodeStringToPacket(readString);
+      // dataReceived = packet.data;
+      // response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, "Received");
+      response_data = "Received";
     }
   } else {
     response_data = "Can't read! Fail";
