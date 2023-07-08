@@ -13,24 +13,29 @@ bool dataSetUpSended = false;
 void serialEvent() {
   while (Serial.available()) {
     if (Serial.available() > 0) {
-      char c = (char)Serial.read();  //gets one byte from serial buffer
-      readString += c;
-      if (c == '#') {
-        stringCompleted = true;
-      }  //makes the string readString
+      readString = Serial.readString();
+      delay(10);
+      readString.trim();
+      //makes the string readString
     }
   }
+
   if (readString.length() > 0) {
-    if (readString == "s") {
-      response_data = sendSetUpInfomation();
-    } else if (readString == "SuccessSetUp") {
+    if (readString == "SuccessSetUp") {
       response_data = "";
       dataSetUpSended = true;
-    } else {
-      // struct Packet packet = DecodeStringToPacket(readString);
-      // dataReceived = packet.data;
-      // response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, "Received");
-      response_data = "Received";
+    }
+    // else if (readString == "Received") {
+    //   dataSendSuccess = true;
+    // }
+    else {
+      struct Packet packet = DecodeStringToPacket(readString.c_str());
+      response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, packet.data);
+      if (packet.data == "1") {
+        digitalWrite(LED_BUILTIN, HIGH);
+      } else if (packet.data == "0") {
+        digitalWrite(LED_BUILTIN, LOW);
+      }
     }
   } else {
     response_data = "Can't read! Fail";
@@ -46,24 +51,24 @@ void setup() {
   pinMode(e32_pin.AUX, OUTPUT);
   Serial.begin(9600);
   pinMode(LED_BUILTIN, OUTPUT);
-
 }
 int counter = 10;
 void loop() {
   // put your main code here, to run repeatedly:
-  counter--;
-  if (counter <= 0) {
-    counter = 3000;
-    if (!dataSetUpSended) {
+  if (!dataSetUpSended) {
+    counter--;
+    if (counter <= 0) {
+      counter = 3000;
       response_data = sendSetUpInfomation();
       Serial.println(response_data);
       response_data = "";
-    } else {
-      if (stringCompleted) {
-        Serial.println(response_data);
-        stringCompleted = false;
-        digitalWrite(LED_BUILTIN, dataReceived.toInt());
-      }
+    }
+
+  } else {
+    if (response_data != "") {
+      Serial.println(response_data);
+      response_data = "";
+      readString = "";
     }
   }
 
