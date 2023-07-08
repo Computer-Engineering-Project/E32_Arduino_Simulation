@@ -34,7 +34,7 @@ String readString;
 String response_data;
 String dataReceived;
 bool stringCompleted = false;
-bool dataSetUpSended = false;
+bool dataSetUpSended = true;
 
 struct Parameter createParameter(int frequency, int baud_rate, String address, String channel, float air_data_rate, int parity, int transmitting_power) {
   struct Parameter parameter;
