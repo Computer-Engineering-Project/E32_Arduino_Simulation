@@ -8,9 +8,9 @@ String channel = "";
 String address = "";
 String frequency = "";
 bool received_ACK = false;
-bool received__setup_string = false;
-bool done_setup = false; // Flag: Done set up parameter for device
-bool R_SetUp = false;  //Flag: Env received message "SetUpParam" or not
+// bool received__setup_string = false;
+// bool done_setup = false;  // Flag: Done set up parameter for device
+// bool R_SetUp = false;     //Flag: Env received message "SetUpParam" or not
 String received__string = "";
 int counter = 1;
 
@@ -23,7 +23,10 @@ enum MODE_TYPE {
   MODE_INIT = 3,
 
 };
+
 MODE_TYPE Mode;
+bool ack = false;
+bool setup_done = false;
 byte buffer_read__user[512];
 void setup() {
   // put your setup code here, to run once:
@@ -48,40 +51,36 @@ void decodeMessage(String message) {
 }
 void serialEvent() {
   if (Serial.available()) {
-    char receivedChar = Serial.read();  // Đọc một byte dữ liệu từ cổng nối tiếp
-    received_ACK = true;
-    counter = 1;
+    char receivedChar = Serial.read();   // Đọc một byte dữ liệu từ cổng nối tiếp
     if (receivedChar != '\n') {          // Kiểm tra nếu chưa gặp ký tự kết thúc chuỗi
       received__string += receivedChar;  // Thêm ký tự vào bộ đệm
     } else {
       // Ký tự kết thúc chuỗi được nhận
       // Xử lý bộ đệm (ví dụ: in ra dữ liệu)
       // Reset bộ đệm
+      ack = true;
+      counter = 1;
       received__string.trim();
-      processData(received__string);
+      // processData(received__string);
       received__string = "";
     }
   }
 }
 
-void processData(String message) {
-  if (Mode == MODE_3_SLEEP) {
-    Serial.println("Processing...");
-    if (message == "R_SetUp") {
-      R_SetUp = true;
-      messageToEnv = "";
-    } else if (message == "R_Success") {
-      done_setup = true;
-    } else {
-      SetUpParameter();
-      messageToEnv = encodeMessage(id, channel, address, "Success");
-      
-    }
-  }
-}
+// void processData(String message) {
+//   if (Mode == MODE_3_SLEEP) {
+//     if (ack) {
+//       SetUpParameter();
+//     }
+//   }
+//   ack = false;
+// }
 
-void SetUpParameter(){
-
+void SetUpParameter(String message) {
+  // Serial.println("processing");
+  decodeMessage(message);
+  setup_done = true;
+  ack = false;
 }
 
 void loop() {
@@ -98,24 +97,32 @@ void loop() {
 
   switch (Mode) {
     case MODE_3_SLEEP:
-      //Send message need to setup param to environment
-      counter--;
-      if (counter <= 0) {
-        if (!done_setup) {  // Check if received ACK or not
-          // Serial.println(Mode);
-          if (!R_SetUp) {
-            messageToEnv = encodeMessage(id, channel, address, "SetUpParam");
-            Serial.println(messageToEnv);
-          }else{
-            // Serial.println(messageToEnv);
+      {
+        if (!setup_done) {
+          if (!ack) {
+            counter--;
+            if (counter <= 0) {
+              counter = 1000;
+              messageToEnv = encodeMessage(id, address, channel, "SetUpParam");
+              Serial.println(messageToEnv);
+            }
+          } else {
+            //set up param
+            SetUpParameter();
+          }
+
+        } else {
+          if (!ack) {
+            counter--;
+            if (counter <= 0) {
+              counter = 1000;
+              messageToEnv = encodeMessage(id, address, channel, "Success");
+              Serial.println(messageToEnv);
+            }
           }
         }
-        counter = 10000;
+        break;
       }
-
-
-
-      break;
     default:
       break;
   }
