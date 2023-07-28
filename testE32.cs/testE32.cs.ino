@@ -5,7 +5,7 @@ int pin_AUX = 4;
 int M0 = 1;
 int M1 = 0;
 int AUX = 1;
-String id = "002";
+String id = "003";
 String channel = "";
 String address = "";
 String frequency = "";
@@ -222,8 +222,9 @@ void serialEvent() {
       // Xử lý bộ đệm (ví dụ: in ra dữ liệu)
       // Reset bộ đệm
       Received__Env.trim();
-      processData__Env(Received__Env);
-      
+      if (Mode != MODE_3_SLEEP) {
+        processData__Env(Received__Env);
+      }
       ack = true;
       counter = 1;
       // processData(received__string);
@@ -344,6 +345,7 @@ void loop() {
     case MODE_0_NORMAL:
       {
         if (bufferIndex_user > 0 && AUX == 1) {
+
           AUX = 0;
           String message = "";
           for (int i = 0; i < bufferIndex_user; i++) {
@@ -359,6 +361,9 @@ void loop() {
               mess[index] = String(token);
               mess[index].trim();
               index++;
+              if (index >= 4) {
+                break;
+              }
               token = strtok(NULL, " ");
             }
             for (int i = 0; i < 4; i++) {

@@ -1,80 +1,112 @@
 
-#include "stdlib.h"
 #include "inital.h"
 #include "ReadMessage.h"
 
 
-String readString;
-String response_data;
-String dataReceived;
-bool stringCompleted = false;
-bool dataSetUpSended = false;
+int M0 = 1;
+int M1 = 1;
+int AUX = 1;
+
+bool received_ACK = false;
+String received__string = "";
+int counter = 1;
+String messageToEnv = "";
+
+
+MODE_TYPE Mode;
+bool ack = false;
+bool setup_done = false;
+byte buffer_read__user[512];
+void setup() {
+  // put your setup code here, to run once:
+  Serial.begin(9600);
+  Mode = MODE_INIT;
+    inital();
+}
+
 
 void serialEvent() {
-  while (Serial.available()) {
-    if (Serial.available() > 0) {
-      readString = Serial.readString();
-      delay(10);
-      readString.trim();
-      //makes the string readString
-    }
-  }
+  if (Serial.available()) {
+    char receivedChar = Serial.read();   // Đọc một byte dữ liệu từ cổng nối tiếp
+    if (receivedChar != '\n') {          // Kiểm tra nếu chưa gặp ký tự kết thúc chuỗi
+      received__string += receivedChar;  // Thêm ký tự vào bộ đệm
+    } else {
+      // Ký tự kết thúc chuỗi được nhận
+      // Xử lý bộ đệm (ví dụ: in ra dữ liệu)
+      // Reset bộ đệm
+      ack = true;
+      counter = 1;
+      received__string.trim();
+      // processData(received__string);
 
-  if (readString.length() > 0) {
-    if (readString == "SuccessSetUp") {
-      response_data = "";
-      dataSetUpSended = true;
+      // received__string = "";
     }
-    // else if (readString == "Received") {
-    //   dataSendSuccess = true;
-    // }
-    else {
-      struct Packet packet = DecodeStringToPacket(readString.c_str());
-      response_data = EncodePacketToString('b', e32_parameter.address, e32_parameter.channel, packet.owner_address, packet.owner_channel, packet.data);
-      if (packet.data == "1") {
-        digitalWrite(LED_BUILTIN, HIGH);
-      } else if (packet.data == "0") {
-        digitalWrite(LED_BUILTIN, LOW);
-      }
-    }
-  } else {
-    response_data = "Can't read! Fail";
   }
 }
 
-void setup() {
+// void processData(String message) {
+//   if (Mode == MODE_3_SLEEP) {
+//     if (ack) {
+//       SetUpParameter();
+//     }
+//   }
+//   ack = false;
+// }
 
-  // put your setup code here, to run once:
-  inital();
-  pinMode(e32_pin.M0, INPUT);
-  pinMode(e32_pin.M1, INPUT);
-  pinMode(e32_pin.AUX, OUTPUT);
-  Serial.begin(9600);
-  pinMode(LED_BUILTIN, OUTPUT);
+void SetUpParameter(String message) {
+  // Serial.println("processing");
+  decodeMessage(message);
+  setup_done = true;
+  ack = false;
 }
-int counter = 10;
+
 void loop() {
   // put your main code here, to run repeatedly:
-  if (!dataSetUpSended) {
-    counter--;
-    if (counter <= 0) {
-      counter = 3000;
-      response_data = sendSetUpInfomation();
-      Serial.println(response_data);
-      response_data = "";
-    }
-
+  if (M0 == 0 && M1 == 0) {
+    Mode = MODE_0_NORMAL;
+  } else if (M0 == 0 && M1 == 1) {
+    Mode = MODE_1_WAKE_UP;
+  } else if (M0 == 1 && M1 == 0) {
+    Mode = MODE_2_POWER_SAVING;
   } else {
-    if (response_data != "") {
-      Serial.println(response_data);
-      response_data = "";
-      readString = "";
-    }
+    Mode = MODE_3_SLEEP;
   }
 
+  switch (Mode) {
+    case MODE_3_SLEEP:
+      {
+        if (!setup_done) {
+          if (!ack) {
+            counter--;
+            if (counter <= 0) {
+              counter = 1000;
+              messageToEnv = encodeMessage(e32_parameter.id, e32_parameter.address, e32_parameter.channel, "SetUpParam");
+              Serial.println(messageToEnv);
+            }
+          } else {
+            //set up param
+            SetUpParameter(received__string);
+          }
 
+        } else {
+          if (!ack) {
+            counter--;
+            if (counter <= 0) {
+              counter = 1000;
+              messageToEnv = encodeMessage(e32_parameter.id, e32_parameter.address, e32_parameter.channel, "Success");
+              Serial.println(messageToEnv);
+            }
+          }
+        }
+        break;
+      }
+      case MODE_0_NORMAL:
+      {
+        
+        break;
+      }
+    default:
+      break;
+  }
   delay(1);
-  // }
-
-  // Chờ 1 giây trước khi lặp lại
 }

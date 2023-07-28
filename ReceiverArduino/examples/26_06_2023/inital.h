@@ -4,40 +4,40 @@
 #include "Arduino.h"
 
 
-struct Parameter
-{
-    int frequency; // Hz
-    int baud_rate;
-    String address;
-    String channel;
-    float air_data_rate; // kbps
-    int parity;
-    int transmitting_power;
+struct Parameter {
+  String id;
+  String channel;
+  String address;
+  String frequency;
+  String parity;
+  String uartRate;
+  String airRate;
+  String fixedMode;
+  String IOMode;
+  String wakeupTime;
+  String FEC;
+  String transPower;
 };
 
-struct Pin
-{
-    int RXD;
-    int TXD;
-    int M0;
-    int M1;
-    int AUX;
+struct Pin {
+  int RXD;
+  int TXD;
+  int M0;
+  int M1;
+  int AUX;
+};
+enum MODE_TYPE {
+  MODE_0_NORMAL = 0,
+  MODE_1_WAKE_UP = 1,
+  MODE_2_POWER_SAVING = 2,
+  MODE_3_SLEEP = 3,
+  MODE_INIT = 3,
+
 };
 
-struct Packet
-{
-    char type;
-    String owner_channel;
-    String owner_address;
-    String target_address;
-    String target_channel;
-    String data;
-};
-
-struct Parameter createParameter(int frequency, int baud_rate, String address, String channel, float air_data_rate, int parity, int transmitting_power);
+struct Parameter createParameter(String id, String channel, String address, String frequency, String parity, String uartRate, String airRate, String fixedMode, String IOMode, String wakeupTime, String FEC, String transPower);
 struct Pin createPin(int RXD, int TXD, int M0, int M1, int AUX);
 void inital();
-String sendSetUpInfomation();
 
 // Parameters--------------------------------------------------------
 extern struct Parameter e32_parameter;

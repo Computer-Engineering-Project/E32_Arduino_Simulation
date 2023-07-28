@@ -5,7 +5,7 @@
 #include "inital.h"
 
 // Function prototypes
-String EncodePacketToString(char type, String owner_address, String owner_channel, String target_address, String target_channel, String data);
-struct Packet DecodeStringToPacket(String encodeString);
+String encodeMessage(String id, String address, String channel, String data);
+void decodeMessage(String message);
 
 #endif
